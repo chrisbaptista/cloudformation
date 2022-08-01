@@ -1,0 +1,132 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Load Balancer Cloudformation Template
+
+Parameters:
+  TagsStackName:
+    Description: Tags Stack Name
+    Type: String
+  VpcStackName:
+    Description: VPC Stack Name
+    Type: String
+  LaunchTemplateStackName:
+    Description: launch Template Stack Name
+    Type: String
+  AutoscalingGroupStackName:
+    Description: Auto Scaling Group Stack Name
+    Type: String
+  NumberSubnets:
+    Description: Number of Subnets
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 6
+
+Conditions:
+  UseSubnet2: !Or
+    - !Equals [ !Ref NumberSubnets, 3 ]
+    - !Equals [ !Ref NumberSubnets, 4 ]
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  UseSubnet3: !Or
+    - !Equals [ !Ref NumberSubnets, 4 ]
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  UseSubnet4: !Or
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  UseSubnet5: !Equals [ !Ref NumberSubnets, 6 ]
+
+Resources:
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ELB Security Group
+      GroupName: !Join
+        - '-'
+        - - !Ref AWS::StackName
+          - elb
+      VpcId: !ImportValue
+        'Fn::Sub': ${VpcStackName}-VpcId
+
+  ELBSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: 0.0.0.0/0
+      GroupId: !GetAtt ELBSecurityGroup.GroupId
+
+  ElasticLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - load-balancer
+      Subnets:
+        - !ImportValue
+          'Fn::Sub': ${VpcStackName}-PublicSubnet0
+        - !ImportValue
+          'Fn::Sub': ${VpcStackName}-PublicSubnet1
+
+        - !If
+          - UseSubnet2
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PublicSubnet2
+          - !Ref AWS::NoValue
+        - !If
+          - UseSubnet3
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PublicSubnet3
+          - !Ref AWS::NoValue
+        - !If
+          - UseSubnet4
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PublicSubnet4
+          - !Ref AWS::NoValue
+        - !If
+          - UseSubnet5
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PublicSubnet5
+          - !Ref AWS::NoValue
+
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+      Type: application
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn:
+      - ElasticLoadBalancer
+    Properties:
+      LoadBalancerArn: !Ref ElasticLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !ImportValue
+            'Fn::Sub': ${AutoscalingGroupStackName}-TargetGroupArn
+
+  AppSecurityGroupHttpInboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      GroupId: !ImportValue
+        'Fn::Sub': ${LaunchTemplateStackName}-SecurityGroupId
+      SourceSecurityGroupId: !GetAtt ELBSecurityGroup.GroupId
+
+Outputs:
+  ElbUrl:
+    Description: Load Balancer URL
+    Value: !GetAtt ElasticLoadBalancer.DNSName
+    Export:
+      Name: !Sub ${AWS::StackName}-LoadBalancer
+  ElbSecurityGroupId:
+    Description: Load Balancer Security Group
+    Value: !GetAtt ELBSecurityGroup.GroupId
+    Export:
+      Name: !Sub ${AWS::StackName}-SecurityGroup
