@@ -1,0 +1,210 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC Subnet Cloudformation Template
+
+Parameters:
+  TagsStackName:
+    Description: Tags Stack Name
+    Type: String
+  VPC:
+    Description: VPC ID
+    Type: String
+  AvailabilityZone:
+    Description: Availability Zone
+    Type: String
+  PublicSubnetCidr:
+    Description: Public Subnet CIDR
+    Type: String
+  PrivateSubnetCidr:
+    Description: Private Subnet CIDR
+    Type: String
+  RDSPrivateSubnetCidr:
+    Description: RDS Private Subnet CIDR
+    Type: String
+  PublicRouteTable:
+    Description: Public Route Table
+    Type: String
+  PublicNetworkAcl:
+    Description: Public Network AC
+    Type: String
+
+Resources:
+  PublicSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Sub ${AWS::Region}${AvailabilityZone}
+      CidrBlock: !Ref PublicSubnetCidr
+      MapPublicIpOnLaunch: "true"
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Public"
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - 'public'
+              - !Ref AvailabilityZone
+
+  PrivateSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Sub ${AWS::Region}${AvailabilityZone}
+      CidrBlock: !Ref PrivateSubnetCidr
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Private"
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - 'private'
+              - !Ref AvailabilityZone
+
+  RDSPrivateSubnet:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Sub ${AWS::Region}${AvailabilityZone}
+      CidrBlock: !Ref RDSPrivateSubnetCidr
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Private RDS"
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - 'private'
+              - 'rds'
+              - !Ref AvailabilityZone
+
+  PublicSubnetRouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    DependsOn:
+      - PublicSubnet
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetNetworkAclAssociation:
+    Type: "AWS::EC2::SubnetNetworkAclAssociation"
+    DependsOn:
+      - PublicSubnet
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      NetworkAclId: !Ref PublicNetworkAcl
+
+  ElasticIP:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: "vpc"
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+            'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+            'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - eip
+
+  NATGateway:
+    Type: "AWS::EC2::NatGateway"
+    DependsOn:
+      - PublicSubnet
+      - ElasticIP
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - ElasticIP
+          - AllocationId
+      SubnetId: !Ref PublicSubnet
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - 'private-route-table'
+
+  PrivateRouteToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      NatGatewayId: !Ref NATGateway
+
+  PrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+  RDSPrivateSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref RDSPrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+Outputs:
+  PublicSubnet:
+    Description: Public Subnet
+    Value: !Ref PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet
+  PrivateSubnet:
+    Description: Private Subnet
+    Value: !Ref PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet
+  RDSPrivateSubnet:
+    Description: RDSPrivate Subnet
+    Value: !Ref RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet
+  ElasticIP:
+    Description: Elastic IP
+    Value: !Ref ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP

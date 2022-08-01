@@ -1,0 +1,27 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Tags Cloudformation Template
+
+Parameters:
+  ProjectName:
+    Description: Project Name
+    Type: String
+  Environment:
+    Description: Environment
+    Type: String
+
+Resources:
+  NullResource:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+Outputs:
+  ProjectName:
+    Description: Project Name
+    Value: !Ref ProjectName
+    Export:
+      Name: !Sub ${AWS::StackName}-ProjectName
+  Environment:
+    Description: Environment
+    Value: !Ref Environment
+    Export:
+      Name: !Sub ${AWS::StackName}-Environment

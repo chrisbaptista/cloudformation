@@ -1,0 +1,595 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC Cloudformation Template
+
+Parameters:
+  TagsStackName:
+    Description: Tags Stack Name
+    Type: String
+  NumberSubnets:
+    Description: Number of Subnets
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 6
+  SubnetTemplateUrl:
+    Description: Subnet Template URL
+    Type: String
+
+Conditions:
+  CreateSubnet2: !Or
+    - !Equals [ !Ref NumberSubnets, 3 ]
+    - !Equals [ !Ref NumberSubnets, 4 ]
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  CreateSubnet3: !Or
+    - !Equals [ !Ref NumberSubnets, 4 ]
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  CreateSubnet4: !Or
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  CreateSubnet5: !Equals [ !Ref NumberSubnets, 6 ]
+
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: "10.0.0.0/16"
+    Public0:
+      CIDR: "10.0.10.0/24"
+    Public1:
+      CIDR: "10.0.11.0/24"
+    Public2:
+      CIDR: "10.0.12.0/24"
+    Public3:
+      CIDR: "10.0.13.0/24"
+    Public4:
+      CIDR: "10.0.14.0/24"
+    Public5:
+      CIDR: "10.0.15.0/24"
+
+    Private0:
+      CIDR: "10.0.20.0/24"
+    Private1:
+      CIDR: "10.0.21.0/24"
+    Private2:
+      CIDR: "10.0.22.0/24"
+    Private3:
+      CIDR: "10.0.23.0/24"
+    Private4:
+      CIDR: "10.0.24.0/24"
+    Private5:
+      CIDR: "10.0.25.0/24"
+
+    RDSPrivate0:
+      CIDR: "10.0.30.0/24"
+    RDSPrivate1:
+      CIDR: "10.0.31.0/24"
+    RDSPrivate2:
+      CIDR: "10.0.32.0/24"
+    RDSPrivate3:
+      CIDR: "10.0.33.0/24"
+    RDSPrivate4:
+      CIDR: "10.0.34.0/24"
+    RDSPrivate5:
+      CIDR: "10.0.35.0/24"
+
+  # This mapping accounts for the scenario when certain AZs
+  # are not available to use (this differs on a per account
+  # per customer basis). E.g., if the 'b' AZ is not available
+  # in a specific region in one's account then updating the
+  # list contained in the mapping below here will allow a
+  # different AZ to be chosen.
+  AZRegions:
+    ap-northeast-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    ap-northeast-2:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    ap-south-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    ap-southeast-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    ap-southeast-2:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    ca-central-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    eu-central-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    eu-west-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    eu-west-2:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    sa-east-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    us-east-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    us-east-2:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    us-west-1:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+    us-west-2:
+      AZs: ["a", "b", "c", "d", "e", "f"]
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      CidrBlock:
+        Fn::FindInMap:
+          - "SubnetConfig"
+          - "VPC"
+          - "CIDR"
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Public"
+        - Key: "Name"
+          Value: !Join ["-", [!Ref AWS::StackName, "vpc"]]
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Public"
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - 'ign'
+
+  GatewayToInternet:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    DependsOn:
+      - VPC
+      - InternetGateway
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn:
+      - VPC
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Public"
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            -
+              - !Ref AWS::StackName
+              - '-public-route-table'
+
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn:
+      - InternetGateway
+      - GatewayToInternet
+      - PublicRouteTable
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+
+  PublicNetworkAcl:
+    Type: "AWS::EC2::NetworkAcl"
+    DependsOn:
+      - VPC
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+        - Key: "Network"
+          Value: "Public"
+        - Key: "Name"
+          Value: !Join
+            - '-'
+            -
+              - !Ref AWS::StackName
+              - '-public-net-acl'
+
+  InboundHTTPPublicNetworkAclEntry:
+    Type: "AWS::EC2::NetworkAclEntry"
+    DependsOn:
+      - PublicNetworkAcl
+    Properties:
+      NetworkAclId: !Ref PublicNetworkAcl
+      RuleNumber: "100"
+      Protocol: "-1"
+      RuleAction: "allow"
+      Egress: "false"
+      CidrBlock: "0.0.0.0/0"
+      PortRange:
+        From: "0"
+        To: "65535"
+
+  OutboundPublicNetworkAclEntry:
+    Type: "AWS::EC2::NetworkAclEntry"
+    DependsOn:
+      - PublicNetworkAcl
+    Properties:
+      NetworkAclId: !Ref PublicNetworkAcl
+      RuleNumber: "100"
+      Protocol: "-1"
+      RuleAction: "allow"
+      Egress: "true"
+      CidrBlock: "0.0.0.0/0"
+      PortRange:
+        From: "0"
+        To: "65535"
+
+  SubnetStack0:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref SubnetTemplateUrl
+      Parameters:
+        TagsStackName: !Ref TagsStackName
+        VPC: !Ref VPC
+        AvailabilityZone: !Select [ 0, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+        PublicSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Public0"
+            - "CIDR"
+        PrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Private0"
+            - "CIDR"
+        RDSPrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "RDSPrivate0"
+            - "CIDR"
+        PublicRouteTable: !Ref PublicRouteTable
+        PublicNetworkAcl: !Ref PublicNetworkAcl
+
+  SubnetStack1:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Ref SubnetTemplateUrl
+      Parameters:
+        TagsStackName: !Ref TagsStackName
+        VPC: !Ref VPC
+        AvailabilityZone: !Select [ 1, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+        PublicSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Public1"
+            - "CIDR"
+        PrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Private1"
+            - "CIDR"
+        RDSPrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "RDSPrivate1"
+            - "CIDR"
+        PublicRouteTable: !Ref PublicRouteTable
+        PublicNetworkAcl: !Ref PublicNetworkAcl
+
+  SubnetStack2:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateSubnet2
+    Properties:
+      TemplateURL: !Ref SubnetTemplateUrl
+      Parameters:
+        TagsStackName: !Ref TagsStackName
+        VPC: !Ref VPC
+        AvailabilityZone: !Select [ 2, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+        PublicSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Public2"
+            - "CIDR"
+        PrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Private2"
+            - "CIDR"
+        RDSPrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "RDSPrivate2"
+            - "CIDR"
+        PublicRouteTable: !Ref PublicRouteTable
+        PublicNetworkAcl: !Ref PublicNetworkAcl
+
+  SubnetStack3:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateSubnet3
+    Properties:
+      TemplateURL: !Ref SubnetTemplateUrl
+      Parameters:
+        TagsStackName: !Ref TagsStackName
+        VPC: !Ref VPC
+        AvailabilityZone: !Select [ 3, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+        PublicSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Public3"
+            - "CIDR"
+        PrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Private3"
+            - "CIDR"
+        RDSPrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "RDSPrivate3"
+            - "CIDR"
+        PublicRouteTable: !Ref PublicRouteTable
+        PublicNetworkAcl: !Ref PublicNetworkAcl
+
+  SubnetStack4:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateSubnet4
+    Properties:
+      TemplateURL: !Ref SubnetTemplateUrl
+      Parameters:
+        TagsStackName: !Ref TagsStackName
+        VPC: !Ref VPC
+        AvailabilityZone: !Select [ 4, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+        PublicSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Public4"
+            - "CIDR"
+        PrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Private4"
+            - "CIDR"
+        RDSPrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "RDSPrivate4"
+            - "CIDR"
+        PublicRouteTable: !Ref PublicRouteTable
+        PublicNetworkAcl: !Ref PublicNetworkAcl
+
+  SubnetStack5:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateSubnet5
+    Properties:
+      TemplateURL: !Ref SubnetTemplateUrl
+      Parameters:
+        TagsStackName: !Ref TagsStackName
+        VPC: !Ref VPC
+        AvailabilityZone: !Select [ 5, !FindInMap [ "AZRegions", !Ref "AWS::Region", "AZs" ] ]
+        PublicSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Public5"
+            - "CIDR"
+        PrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "Private5"
+            - "CIDR"
+        RDSPrivateSubnetCidr:
+          Fn::FindInMap:
+            - "SubnetConfig"
+            - "RDSPrivate5"
+            - "CIDR"
+        PublicRouteTable: !Ref PublicRouteTable
+        PublicNetworkAcl: !Ref PublicNetworkAcl
+
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS Subnet Group
+      DBSubnetGroupName: !Join
+            - '-'
+            - - !Ref AWS::StackName
+              - rds
+              - subnet
+              - group
+      SubnetIds:
+        - !GetAtt SubnetStack0.Outputs.RDSPrivateSubnet
+        - !GetAtt SubnetStack1.Outputs.RDSPrivateSubnet
+        - !If
+          - CreateSubnet2
+          - !GetAtt SubnetStack2.Outputs.RDSPrivateSubnet
+          - !Ref AWS::NoValue
+        - !If
+          - CreateSubnet3
+          - !GetAtt SubnetStack3.Outputs.RDSPrivateSubnet
+          - !Ref AWS::NoValue
+        - !If
+          - CreateSubnet4
+          - !GetAtt SubnetStack4.Outputs.RDSPrivateSubnet
+          - !Ref AWS::NoValue
+        - !If
+          - CreateSubnet5
+          - !GetAtt SubnetStack5.Outputs.RDSPrivateSubnet
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+
+Outputs:
+  NumberSubnets:
+    Description: Number of Subnets
+    Value: !Ref NumberSubnets
+    Export:
+      Name: !Sub ${AWS::StackName}-NumberSubnets
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcId
+
+  PublicSubnet0:
+    Description: Public Subnet 0
+    Value: !GetAtt SubnetStack0.Outputs.PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet0
+  PublicSubnet1:
+    Description: Public Subnet 1
+    Value: !GetAtt SubnetStack1.Outputs.PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet1
+  PublicSubnet2:
+    Condition: CreateSubnet2
+    Description: Public Subnet 2
+    Value: !GetAtt SubnetStack2.Outputs.PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet2
+  PublicSubnet3:
+    Condition: CreateSubnet3
+    Description: Public Subnet 3
+    Value: !GetAtt SubnetStack3.Outputs.PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet3
+  PublicSubnet4:
+    Condition: CreateSubnet4
+    Description: Public Subnet 4
+    Value: !GetAtt SubnetStack4.Outputs.PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet4
+  PublicSubnet5:
+    Condition: CreateSubnet5
+    Description: Public Subnet 5
+    Value: !GetAtt SubnetStack5.Outputs.PublicSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet5
+
+  PrivateSubnet0:
+    Description: Private Subnet 0
+    Value: !GetAtt SubnetStack0.Outputs.PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet0
+  PrivateSubnet1:
+    Description: Private Subnet 1
+    Value: !GetAtt SubnetStack1.Outputs.PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet1
+  PrivateSubnet2:
+    Condition: CreateSubnet2
+    Description: Private Subnet 2
+    Value: !GetAtt SubnetStack2.Outputs.PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet2
+  PrivateSubnet3:
+    Condition: CreateSubnet3
+    Description: Private Subnet 3
+    Value: !GetAtt SubnetStack3.Outputs.PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet3
+  PrivateSubnet4:
+    Condition: CreateSubnet4
+    Description: Private Subnet 4
+    Value: !GetAtt SubnetStack4.Outputs.PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet4
+  PrivateSubnet5:
+    Condition: CreateSubnet5
+    Description: Private Subnet 5
+    Value: !GetAtt SubnetStack5.Outputs.PrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet5
+
+  RDSPrivateSubnet0:
+    Description: RDSPrivate Subnet 0
+    Value: !GetAtt SubnetStack0.Outputs.RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet0
+  RDSPrivateSubnet1:
+    Description: RDSPrivate Subnet 1
+    Value: !GetAtt SubnetStack1.Outputs.RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet1
+  RDSPrivateSubnet2:
+    Condition: CreateSubnet2
+    Description: RDSPrivate Subnet 2
+    Value: !GetAtt SubnetStack2.Outputs.RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet2
+  RDSPrivateSubnet3:
+    Condition: CreateSubnet3
+    Description: RDSPrivate Subnet 3
+    Value: !GetAtt SubnetStack3.Outputs.RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet3
+  RDSPrivateSubnet4:
+    Condition: CreateSubnet4
+    Description: RDSPrivate Subnet 4
+    Value: !GetAtt SubnetStack4.Outputs.RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet4
+  RDSPrivateSubnet5:
+    Condition: CreateSubnet5
+    Description: RDSPrivate Subnet 5
+    Value: !GetAtt SubnetStack5.Outputs.RDSPrivateSubnet
+    Export:
+      Name: !Sub ${AWS::StackName}-RDSPrivateSubnet5
+
+  ElasticIP0:
+    Description: Elastic IP 0
+    Value: !GetAtt SubnetStack0.Outputs.ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP0
+  ElasticIP1:
+    Description: Elastic IP 1
+    Value: !GetAtt SubnetStack1.Outputs.ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP1
+  ElasticIP2:
+    Condition: CreateSubnet2
+    Description: Elastic IP 2
+    Value: !GetAtt SubnetStack2.Outputs.ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP2
+  ElasticIP3:
+    Condition: CreateSubnet3
+    Description: Elastic IP 3
+    Value: !GetAtt SubnetStack3.Outputs.ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP3
+  ElasticIP4:
+    Condition: CreateSubnet4
+    Description: Elastic IP 4
+    Value: !GetAtt SubnetStack4.Outputs.ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP4
+  ElasticIP5:
+    Condition: CreateSubnet5
+    Description: Elastic IP 5
+    Value: !GetAtt SubnetStack5.Outputs.ElasticIP
+    Export:
+      Name: !Sub ${AWS::StackName}-ElasticIP5
