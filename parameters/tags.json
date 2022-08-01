@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "cloudformation-demo",
+    "UsePreviousValue": false,
+    "ResolvedValue": "cloudformation-demo"
+  },
+  {
+    "ParameterKey": "Environment",
+    "ParameterValue": "demo",
+    "UsePreviousValue": false,
+    "ResolvedValue": "demo"
+  }
+]

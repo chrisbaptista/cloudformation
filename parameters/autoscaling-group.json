@@ -1,0 +1,26 @@
+[
+  {
+    "ParameterKey": "TagsStackName",
+    "ParameterValue": "tags",
+    "UsePreviousValue": false,
+    "ResolvedValue": "tags"
+  },
+  {
+    "ParameterKey": "VpcStackName",
+    "ParameterValue": "vpc",
+    "UsePreviousValue": false,
+    "ResolvedValue": "vpc"
+  },
+  {
+    "ParameterKey": "LaunchTemplateStackName",
+    "ParameterValue": "launchtemplate",
+    "UsePreviousValue": false,
+    "ResolvedValue": "launchtemplate"
+  },
+  {
+    "ParameterKey": "NumberSubnets",
+    "ParameterValue": "2",
+    "UsePreviousValue": false,
+    "ResolvedValue": "2"
+  }
+]

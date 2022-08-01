@@ -1,0 +1,32 @@
+[
+    {
+    "ParameterKey": "TagsStackName",
+    "ParameterValue": "tags",
+    "UsePreviousValue": false,
+    "ResolvedValue": "tags"
+  },
+  {
+    "ParameterKey": "VpcStackName",
+    "ParameterValue": "vpc",
+    "UsePreviousValue": false,
+    "ResolvedValue": "vpc"
+  },
+  {
+    "ParameterKey": "LaunchTemplateStackName",
+    "ParameterValue": "launchtemplate",
+    "UsePreviousValue": false,
+    "ResolvedValue": "launchtemplate"
+  },
+
+  {
+    "ParameterKey": "AutoscalingGroupStackName",
+    "ParameterValue": "autoscaling-group",
+    "UsePreviousValue": false,
+    "ResolvedValue": "autoscaling-group"
+  },{
+    "ParameterKey": "NumberSubnets",
+    "ParameterValue": "2",
+    "UsePreviousValue": false,
+    "ResolvedValue": "2"
+  }
+]

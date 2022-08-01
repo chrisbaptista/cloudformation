@@ -1,0 +1,8 @@
+[
+  {
+    "ParameterKey": "TagsStackName",
+    "ParameterValue": "tags",
+    "UsePreviousValue": false,
+    "ResolvedValue": "tags"
+  }
+]

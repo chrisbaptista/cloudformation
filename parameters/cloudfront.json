@@ -1,0 +1,20 @@
+[
+  {
+    "ParameterKey": "TagsStackName",
+    "ParameterValue": "tags",
+    "UsePreviousValue": false,
+    "ResolvedValue": "tags"
+  },
+  {
+    "ParameterKey": "ElbStackName",
+    "ParameterValue": "load-balancer",
+    "UsePreviousValue": false,
+    "ResolvedValue": "load-balancer"
+  },
+  {
+    "ParameterKey": "WafStackName",
+    "ParameterValue": "waf",
+    "UsePreviousValue": false,
+    "ResolvedValue": "waf"
+  }
+]

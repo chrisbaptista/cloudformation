@@ -1,0 +1,20 @@
+[
+  {
+    "ParameterKey": "TagsStackName",
+    "ParameterValue": "tags",
+    "UsePreviousValue": false,
+    "ResolvedValue": "tags"
+  },
+  {
+    "ParameterKey": "NumberSubnets",
+    "ParameterValue": "2",
+    "UsePreviousValue": false,
+    "ResolvedValue": "2"
+  },
+  {
+    "ParameterKey": "SubnetTemplateUrl",
+    "ParameterValue": "",
+    "UsePreviousValue": false,
+    "ResolvedValue": ""
+  }
+]

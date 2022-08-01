@@ -66,3 +66,28 @@ Creates Cloudfront Distribution and related policies
 * **TagsStackName** Stack Name for Tags ([tags.yml](#tags-tagsyml))
 * **ElbStackName** Stack Name for ELB ([load-balancer.yml](#load-balancer-load-balanceryml))
 * **WafStackName** Stack Name for WAF ([waf.yml](#web-application-firewall-wafyml))
+
+## Helper Script (cfn.sh)
+
+This is a simple helper script to get started. This is not meant for production use!
+
+The commands are simple. Replace `<resource>` with the corresponding template name. For example `cfn.sh create vpc`
+
+### Commands
+#### Create Stack
+
+```shell
+$ cfn.sh create <resource>
+```
+
+#### Update Stack
+```shell
+$ cfn.sh update <resource>
+```
+
+### Parameters
+Included is a sample set of parameter files. These are sample data used for `cfn.sh`.
+These should not be used for production use.
+
+Please Note: in the parameters/vpc.json, the `SubnetTemplateUrl` value is not set.
+The template file must be uploaded prior to running the command to create the vpc
