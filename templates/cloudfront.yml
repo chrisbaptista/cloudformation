@@ -1,0 +1,84 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC Cloudformation Template
+
+Parameters:
+  TagsStackName:
+    Description: Tags Stack Name
+    Type: String
+  ElbStackName:
+    Description: ELB Stack Name
+    Type: String
+  WafStackName:
+    Description: WAF Stack Name
+    Type: String
+
+Resources:
+  CachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-default-cache-policy
+        DefaultTTL: 3600
+        MinTTL: 1
+        MaxTTL: 86400
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  OriginPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub ${AWS::StackName}-default-origin-policy
+        CookiesConfig:
+          CookieBehavior: none
+        HeadersConfig:
+          HeaderBehavior: none
+        QueryStringsConfig:
+          QueryStringBehavior: none
+
+  CloudFront:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        WebACLId: !ImportValue
+          'Fn::Sub': ${WafStackName}-WAF-ARN
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachePolicyId: !Ref CachePolicy
+          OriginRequestPolicyId: !Ref OriginPolicy
+          TargetOriginId: app-origin
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - Id: app-origin
+            DomainName:  !ImportValue
+              'Fn::Sub': ${ElbStackName}-LoadBalancer
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+
+Outputs:
+  CloudFrontUrl:
+    Description: CloudFront URL
+    Value: !GetAtt CloudFront.DomainName
+    Export:
+      Name: !Sub ${AWS::StackName}-cf-url

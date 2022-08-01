@@ -1,0 +1,42 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VPC Cloudformation Template
+
+Parameters:
+  TagsStackName:
+    Description: Tags Stack Name
+    Type: String
+
+Resources:
+  WAF:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Join
+        - '-'
+        - - !Ref AWS::StackName
+          - waf
+      Description: WAF
+      Scope: CLOUDFRONT
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: True
+        MetricName: !Join
+        - '-'
+        - - !Ref AWS::StackName
+          - waf
+        SampledRequestsEnabled: False
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+            'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+            'Fn::Sub': ${TagsStackName}-Environment
+
+Outputs:
+  WafArn:
+    Description: WAF ARN
+    Value: !GetAtt WAF.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-WAF-ARN

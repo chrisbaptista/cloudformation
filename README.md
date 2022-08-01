@@ -40,7 +40,7 @@ Creates autoscaling and target groups
 * **GroupMinSize** Minimum number of instances in Auto Scaling Group
 * **GroupMaxSize** Maximum number of instances in Auto Scaling Group
 
-### Load Balancer
+### Load Balancer (load-balancer.yml)
 
 Creates an Application Load Balancer and related resources
 
@@ -51,6 +51,18 @@ Creates an Application Load Balancer and related resources
 * **AutoscalingGroupStackName** Stack Name for Auto Scaling Group ([autoscaling-group.yml](#auto-scaling-group-autoscaling-grouoyml))
 * **NumberSubnets** Number of subnets to use
 
-### Web Application Firewall (WAF)
+### Web Application Firewall (waf.yml)
 
-Creates WAF and 
+Creates WAF
+
+#### Parameters
+* **TagsStackName** Stack Name for Tags ([tags.yml](#tags-tagsyml))
+
+### Cloudfront (cloudfront.yml)
+
+Creates Cloudfront Distribution and related policies
+
+#### Parameters
+* **TagsStackName** Stack Name for Tags ([tags.yml](#tags-tagsyml))
+* **ElbStackName** Stack Name for ELB ([load-balancer.yml](#load-balancer-load-balanceryml))
+* **WafStackName** Stack Name for WAF ([waf.yml](#web-application-firewall-wafyml))
