@@ -332,7 +332,9 @@ Resources:
         SecurityGroupIds:
           - !GetAtt EC2SecurityGroup.GroupId
         InstanceType: !Ref 'InstanceType'
-
+        BlockDeviceMappings:
+          - Ebs:
+              Encrypted: True
         UserData:
           Fn::Base64: |
             #!/bin/bash
@@ -341,7 +343,8 @@ Resources:
             service nginx start
             chkconfig nginx on
       TagSpecifications:
-        - Tags:
+        - ResourceType: launch-template
+          Tags:
           - Key: Project
             Value: !ImportValue
                 'Fn::Sub': ${TagsStackName}-ProjectName
