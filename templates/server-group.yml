@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Launch Template Cloudformation Template
+Description: Website Cloudformation Template
 
 Parameters:
   TagsStackName:
@@ -9,6 +9,21 @@ Parameters:
   VpcStackName:
     Description: VPC Stack Name
     Type: String
+
+  NumberSubnets:
+    Description: Number of Subnets
+    Type: Number
+    Default: 2
+    MinValue: 2
+    MaxValue: 6
+  GroupMinSize:
+    Description: Minimum number of servers in autoscaling group
+    Type: Number
+    Default: 1
+  GroupMaxSize:
+    Description: Maximum number of servers in autoscaling group
+    Type: Number
+    Default: 4
 
   InstanceType:
     Description: WebServer EC2 instance type
@@ -23,6 +38,24 @@ Parameters:
                      i2.2xlarge, i2.4xlarge, i2.8xlarge, d2.xlarge, d2.2xlarge, d2.4xlarge, d2.8xlarge,
                      hi1.4xlarge, hs1.8xlarge, cr1.8xlarge, cc2.8xlarge, cg1.4xlarge ]
     ConstraintDescription: must be a valid EC2 instance type.
+  VolumeSize:
+    Description: Volume Size
+    Default: 20
+    Type: Number
+    MinValue: 8
+  VolumeType:
+    Description: Volume Type
+    Default: standard
+    Type: String
+    AllowedValues:
+      - standard
+      - gp2
+      - gp3
+      - io1
+      - io2
+      - sc1
+      - st1
+
   KeyName:
     Description: The EC2 Key Pair to allow SSH access to the instances
     Type: AWS::EC2::KeyPair::KeyName
@@ -297,6 +330,22 @@ Mappings:
       HVM64: ami-8e6aa0e3
       HVMG2: NOT_SUPPORTED
 
+
+Conditions:
+  UseSubnet2: !Or
+    - !Equals [ !Ref NumberSubnets, 3 ]
+    - !Equals [ !Ref NumberSubnets, 4 ]
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  UseSubnet3: !Or
+    - !Equals [ !Ref NumberSubnets, 4 ]
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  UseSubnet4: !Or
+    - !Equals [ !Ref NumberSubnets, 5 ]
+    - !Equals [ !Ref NumberSubnets, 6 ]
+  UseSubnet5: !Equals [ !Ref NumberSubnets, 6 ]
+
 Resources:
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -333,8 +382,12 @@ Resources:
           - !GetAtt EC2SecurityGroup.GroupId
         InstanceType: !Ref 'InstanceType'
         BlockDeviceMappings:
-          - Ebs:
-              Encrypted: True
+          - DeviceName: /dev/xvda
+            Ebs:
+              Encrypted: true
+              VolumeSize: !Ref VolumeSize
+              VolumeType: !Ref VolumeType
+              DeleteOnTermination: true
         UserData:
           Fn::Base64: |
             #!/bin/bash
@@ -352,18 +405,87 @@ Resources:
             Value: !ImportValue
                 'Fn::Sub': ${TagsStackName}-Environment
 
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join
+        - '-'
+        - - !Ref AWS::StackName
+          - tg
+      VpcId: !ImportValue
+        'Fn::Sub': ${VpcStackName}-VpcId
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: !Ref GroupMinSize
+      MaxSize: !Ref GroupMaxSize
+      TargetGroupARNs:
+        - !Ref TargetGroup
+      VPCZoneIdentifier:
+        - !ImportValue
+          'Fn::Sub': ${VpcStackName}-PrivateSubnet0
+        - !ImportValue
+          'Fn::Sub': ${VpcStackName}-PrivateSubnet1
+        - !If
+          - UseSubnet2
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PrivateSubnet2
+          - !Ref AWS::NoValue
+        - !If
+          - UseSubnet3
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PrivateSubnet3
+          - !Ref AWS::NoValue
+        - !If
+          - UseSubnet4
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PrivateSubnet4
+          - !Ref AWS::NoValue
+        - !If
+          - UseSubnet5
+          - !ImportValue
+            'Fn::Sub': ${VpcStackName}-PrivateSubnet5
+          - !Ref AWS::NoValue
+      Tags:
+        - Key: Project
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-ProjectName
+          PropagateAtLaunch: True
+        - Key: Environment
+          Value: !ImportValue
+              'Fn::Sub': ${TagsStackName}-Environment
+          PropagateAtLaunch: True
+#    CreationPolicy:
+#      ResourceSignal:
+#        Timeout: PT15M
+#        Count: 1
+#    UpdatePolicy:
+#      AutoScalingRollingUpdate:
+#        MinInstancesInService: !Ref GroupMinSize
+#        MaxBatchSize: 1
+#        PauseTime: PT15M
+#        WaitOnResourceSignals: true
 
 Outputs:
-  LaunchTemplate:
-    Description: Launch Template Ref
-    Value: !Ref LaunchTemplate
+  TargetGroupARN:
+    Description: Target Group ARN
+    Value: !Ref TargetGroup
     Export:
-      Name: !Sub ${AWS::StackName}-LaunchTemplate
-  LaunchTemplateVersion:
-    Description: Launch Template Version
-    Value: !GetAtt LaunchTemplate.LatestVersionNumber
-    Export:
-      Name: !Sub ${AWS::StackName}-Version
+      Name: !Sub ${AWS::StackName}-TargetGroupArn
+
   SecurityGroupId:
     Description: EC2 Security Group
     Value: !GetAtt EC2SecurityGroup.GroupId

@@ -9,11 +9,8 @@ Parameters:
   VpcStackName:
     Description: VPC Stack Name
     Type: String
-  LaunchTemplateStackName:
-    Description: launch Template Stack Name
-    Type: String
-  AutoscalingGroupStackName:
-    Description: Auto Scaling Group Stack Name
+  ServerGroupStackName:
+    Description: Server Group Stack Name
     Type: String
   NumberSubnets:
     Description: Number of Subnets
@@ -107,16 +104,16 @@ Resources:
       DefaultActions:
         - Type: forward
           TargetGroupArn: !ImportValue
-            'Fn::Sub': ${AutoscalingGroupStackName}-TargetGroupArn
+            'Fn::Sub': ${ServerGroupStackName}-TargetGroupArn
 
-  AppSecurityGroupHttpInboundRule:
+  ServerGroupHttpInboundRule:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       IpProtocol: tcp
       FromPort: 80
       ToPort: 80
       GroupId: !ImportValue
-        'Fn::Sub': ${LaunchTemplateStackName}-SecurityGroupId
+        'Fn::Sub': ${ServerGroupStackName}-SecurityGroupId
       SourceSecurityGroupId: !GetAtt ELBSecurityGroup.GroupId
 
 Outputs:

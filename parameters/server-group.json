@@ -12,15 +12,21 @@
     "ResolvedValue": "vpc"
   },
   {
-    "ParameterKey": "LaunchTemplateStackName",
-    "ParameterValue": "launchtemplate",
-    "UsePreviousValue": false,
-    "ResolvedValue": "launchtemplate"
-  },
-  {
     "ParameterKey": "NumberSubnets",
     "ParameterValue": "2",
     "UsePreviousValue": false,
     "ResolvedValue": "2"
+  },
+  {
+    "ParameterKey": "InstanceType",
+    "ParameterValue": "t2.micro",
+    "UsePreviousValue": false,
+    "ResolvedValue": "t2.micro"
+  },
+  {
+    "ParameterKey": "KeyName",
+    "ParameterValue": "pvt-demo",
+    "UsePreviousValue": false,
+    "ResolvedValue": "pvt-demo"
   }
 ]
